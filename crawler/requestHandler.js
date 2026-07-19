@@ -102,6 +102,30 @@ async function registerRouteHook(page) {
 }
 
 /**
+ * Progressively scrolls the page to trigger lazy loading of assets.
+ * @param {object} page Playwright Page instance
+ */
+async function autoScroll(page) {
+  await page.evaluate(async () => {
+    await new Promise((resolve) => {
+      let totalHeight = 0;
+      const distance = 250;
+      const timer = setInterval(() => {
+        const scrollHeight = document.body.scrollHeight;
+        window.scrollBy(0, distance);
+        totalHeight += distance;
+
+        // Cap at 15000px to prevent infinite scrolling hooks
+        if (totalHeight >= scrollHeight || totalHeight > 15000) {
+          clearInterval(timer);
+          resolve();
+        }
+      }, 70);
+    });
+  });
+}
+
+/**
  * Creates the Crawlee requestHandler.
  * @param {string} jobId
  * @param {object} requestQueue
@@ -110,7 +134,13 @@ async function registerRouteHook(page) {
 function makeRequestHandler(jobId, requestQueue, options = {}) {
   return async ({ request, page }) => {
 
-    // Wait for the network to settle
+    // Wait for the network to settle initially
+    await page.waitForLoadState('networkidle').catch(() => {});
+
+    // Scroll page down to trigger lazy resources load
+    await autoScroll(page).catch(() => {});
+
+    // Wait for new network requests triggered by scrolling to settle
     await page.waitForLoadState('networkidle').catch(() => {});
 
     // Save final rendered HTML

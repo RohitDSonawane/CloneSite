@@ -142,6 +142,10 @@ async function rewriteHtmlFile(jobId, filePath, hostname, relativeToHost) {
       const resolvedUrl = new URL(rawVal, baseUrl);
       const replacement = await getRelativeOrAbsoluteUrl(jobId, currentFileDir, resolvedUrl);
       $(el).attr('href', replacement);
+      // Strip Subresource Integrity hash checks for local offline links
+      if (replacement !== resolvedUrl.toString()) {
+        $(el).removeAttr('integrity');
+      }
     } catch (err) {
       // Ignore conversion failures for raw strings
     }
@@ -158,6 +162,10 @@ async function rewriteHtmlFile(jobId, filePath, hostname, relativeToHost) {
       const resolvedUrl = new URL(rawVal, baseUrl);
       const replacement = await getRelativeOrAbsoluteUrl(jobId, currentFileDir, resolvedUrl);
       $(el).attr('src', replacement);
+      // Strip Subresource Integrity hash checks for local offline scripts
+      if (replacement !== resolvedUrl.toString()) {
+        $(el).removeAttr('integrity');
+      }
     } catch (err) {
       // Ignore
     }
@@ -172,6 +180,37 @@ async function rewriteHtmlFile(jobId, filePath, hostname, relativeToHost) {
 
     const replacement = await rewriteSrcset(jobId, currentFileDir, baseUrl, rawVal);
     $(el).attr('srcset', replacement);
+  }
+
+  // 4. Rewrite inline style attributes containing url(...) references
+  const styleEls = $('[style*="url("]');
+  for (let i = 0; i < styleEls.length; i++) {
+    const el = styleEls[i];
+    let styleVal = $(el).attr('style');
+    if (!styleVal) continue;
+
+    const urlRegex = /url\(['"]?([^'")]+)['"]?\)/g;
+    let match;
+    const matches = [];
+    while ((match = urlRegex.exec(styleVal)) !== null) {
+      matches.push(match[1]);
+    }
+
+    let modified = false;
+    for (const rawUrl of matches) {
+      try {
+        const resolvedUrl = new URL(rawUrl, baseUrl);
+        const replacement = await getRelativeOrAbsoluteUrl(jobId, currentFileDir, resolvedUrl);
+        styleVal = styleVal.replace(rawUrl, replacement);
+        modified = true;
+      } catch (err) {
+        // Ignore
+      }
+    }
+
+    if (modified) {
+      $(el).attr('style', styleVal);
+    }
   }
 
   await fs.writeFile(filePath, $.html(), 'utf8');
