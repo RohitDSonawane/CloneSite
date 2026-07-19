@@ -2,5 +2,6 @@
 node_modules/
 .env
 work/
-storage/
+storage/*
+!storage/cleanup.js
 public/downloads/
