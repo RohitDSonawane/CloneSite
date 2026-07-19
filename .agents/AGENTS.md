@@ -2,11 +2,11 @@
 
 This project implements **CloneSite**, a Node.js/Express application to crawl a web page, capture JS-rendered content and assets, rewrite references to offline-friendly relative paths, and package the output into a downloadable ZIP archive.
 
-## 📄 Project Specifications
+## Project Specifications
 All requirements, architecture, API specs, security protocols, and testing guidelines are documented in:
 - [BUILD_SPEC.md](file:///d:/ENGR/CloneSite/Docs/BUILD_SPEC.md)
 
-## 🛠️ Technology Stack & Environment
+## Technology Stack & Environment
 Refer to Section 2 of [BUILD_SPEC.md](file:///d:/ENGR/CloneSite/Docs/BUILD_SPEC.md#L23) for details. Key components:
 - **Runtime**: Node.js 20 LTS
 - **Framework**: Express 4.x
@@ -17,13 +17,13 @@ Refer to Section 2 of [BUILD_SPEC.md](file:///d:/ENGR/CloneSite/Docs/BUILD_SPEC.
 - **Validation**: Zod
 - **Job State**: In-memory Map (single-instance target)
 
-## 🔒 Security Constraints
+## Security Constraints
 - **SSRF Guard**: Custom implementation in [crawler/security.js](file:///d:/ENGR/CloneSite/crawler/security.js) running as a Crawlee `preNavigationHook`.
 - **Shell Commands**: NEVER construct or execute shell commands from user input.
 - **Path Traversal**: Validate job ID strictly (UUID format) before any filesystem operations.
 - **Errors**: Never return internal error messages/stack traces to the client.
 
-## ⚙️ Development Rules & Workflow
+## Development Rules & Workflow
 - **Git Commit Workflow**: After completing and verifying each phase of the implementation plan, commit the changes using `git` with a short, descriptive commit message.
 
 # --- PONYTAIL RULES START ---
