@@ -63,9 +63,13 @@ function startCleanupScheduler() {
   sweep().catch(err => logger.error({ err }, 'Startup cleanup sweep failed'));
   
   // Clean every hour (3600000ms)
-  setInterval(() => {
+  const intervalId = setInterval(() => {
     sweep().catch(err => logger.error({ err }, 'Hourly cleanup sweep failed'));
   }, 60 * 60 * 1000);
+
+  if (intervalId && typeof intervalId.unref === 'function') {
+    intervalId.unref();
+  }
 }
 
 module.exports = {

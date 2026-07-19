@@ -116,8 +116,8 @@ async function assertSafeUrl(urlString) {
   if (portString) {
     const port = parseInt(portString, 10);
     const allowedPorts = [80, 443, 8080, 8443];
-    if (process.env.BYPASS_SSRF_FOR_TEST === 'true' && port === 4567) {
-      // Allow test port
+    if (process.env.BYPASS_SSRF_FOR_TEST === 'true' && [4567, 4568, 4570].includes(port)) {
+      // Allow test ports
     } else if (!allowedPorts.includes(port)) {
       throw new Error(`Forbidden port: ${port}`);
     }

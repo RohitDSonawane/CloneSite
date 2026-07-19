@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CloneSite — Dynamic Web Cloner</title>
+  <link rel="stylesheet" href="stylesheets/style.css">
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>CloneSite</h1>
+      <p>Download fully offline-browsable copies of any JS-rendered website</p>
+    </header>
+
+    <main>
+      <form id="crawlForm">
+        <div class="form-group">
+          <label for="url">Target URL</label>
+          <input type="url" id="url" name="url" required placeholder="https://example.com" autocomplete="off">
+        </div>
+
+        <div class="advanced-toggle" id="advancedToggle">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+          Advanced limits
+        </div>
+
+        <div class="advanced-panel" id="advancedPanel">
+          <div class="advanced-grid">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="maxPages">Max Pages</label>
+              <input type="number" id="maxPages" name="maxPages" min="1" max="40" placeholder="40">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="maxDepth">Max Depth</label>
+              <input type="number" id="maxDepth" name="maxDepth" min="1" max="3" placeholder="3">
+            </div>
+            <div class="checkbox-group">
+              <input type="checkbox" id="allowSubdomains" name="allowSubdomains">
+              <label for="allowSubdomains" style="display: inline; text-transform: none; font-weight: 500; color: var(--text-secondary);">
+                Allow subdomains
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="submitBtn">Start Cloning</button>
+      </form>
+
+      <div class="status-panel" id="statusPanel">
+        <div class="status-header">
+          <div class="status-title">
+            <span class="status-indicator" id="statusIndicator"></span>
+            <span id="statusText">Cloning Site...</span>
+          </div>
+          <button type="button" class="btn btn-danger" id="cancelBtn" style="width: auto; padding: 8px 16px;">Cancel</button>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-val" id="statPages">0</div>
+            <div class="stat-lbl">Pages Visited</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="statSize">0 KB</div>
+            <div class="stat-lbl">Size</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="statSpeed">-</div>
+            <div class="stat-lbl">Active URL</div>
+          </div>
+        </div>
+
+        <div class="log-panel" id="logConsole">
+          <div class="log-entry info">Connecting to server...</div>
+        </div>
+      </div>
+
+      <div class="download-panel" id="downloadPanel">
+        <a href="#" class="btn btn-success" id="downloadLink">Download Offline Mirror ZIP</a>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const form = document.getElementById('crawlForm');
+    const advancedToggle = document.getElementById('advancedToggle');
+    const advancedPanel = document.getElementById('advancedPanel');
+    const statusPanel = document.getElementById('statusPanel');
+    const submitBtn = document.getElementById('submitBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const statusIndicator = document.getElementById('statusIndicator');
+    const statusText = document.getElementById('statusText');
+    const statPages = document.getElementById('statPages');
+    const statSize = document.getElementById('statSize');
+    const statSpeed = document.getElementById('statSpeed');
+    const logConsole = document.getElementById('logConsole');
+    const downloadPanel = document.getElementById('downloadPanel');
+    const downloadLink = document.getElementById('downloadLink');
+
+    let eventSource = null;
+    let currentJobId = null;
+
+    // Advanced limits panel toggling
+    advancedToggle.addEventListener('click', () => {
+      const isOpen = advancedToggle.classList.toggle('open');
+      advancedPanel.style.display = isOpen ? 'block' : 'none';
+    });
+
+    // Helper for formatting sizes
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function addLog(text, type = 'info') {
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+      logConsole.appendChild(entry);
+      logConsole.scrollTop = logConsole.scrollHeight;
+    }
+
+    // Reset status metrics views
+    function resetStats() {
+      statPages.textContent = '0';
+      statSize.textContent = '0 Bytes';
+      statSpeed.textContent = '-';
+      logConsole.innerHTML = '';
+      downloadPanel.style.display = 'none';
+      statusIndicator.className = 'status-indicator';
+    }
+
+    // Submit crawl job
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      resetStats();
+
+      const url = document.getElementById('url').value;
+      const maxPages = document.getElementById('maxPages').value;
+      const maxDepth = document.getElementById('maxDepth').value;
+      const allowSubdomains = document.getElementById('allowSubdomains').checked;
+
+      submitBtn.disabled = true;
+      statusPanel.style.display = 'block';
+      statusText.textContent = 'Queueing crawl job...';
+      addLog(`Sending request for target: ${url}`);
+
+      try {
+        const res = await fetch('/crawl', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url,
+            options: {
+              maxPages: maxPages ? parseInt(maxPages) : undefined,
+              maxDepth: maxDepth ? parseInt(maxDepth) : undefined,
+              allowSubdomains
+            }
+          })
+        });
+
+        if (res.status === 429) {
+          const errData = await res.json();
+          throw new Error(errData.error || 'Server rate limit exceeded');
+        }
+
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || 'Failed to submit job');
+        }
+
+        const data = await res.json();
+        currentJobId = data.jobId;
+        addLog(`Crawl job accepted. ID: ${currentJobId}`);
+        connectSSE(currentJobId);
+      } catch (err) {
+        addLog(err.message, 'error');
+        statusText.textContent = 'Job Submission Failed';
+        statusIndicator.className = 'status-indicator error';
+        submitBtn.disabled = false;
+      }
+    });
+
+    // Cancel crawl job
+    cancelBtn.addEventListener('click', async () => {
+      if (!currentJobId) return;
+      addLog('Sending cancellation request...');
+      try {
+        await fetch(`/crawl/${currentJobId}/cancel`, { method: 'POST' });
+        addLog('Cancellation command dispatched.', 'error');
+      } catch (err) {
+        addLog('Failed to dispatch cancellation command.', 'error');
+      }
+    });
+
+    // SSE Stream connection
+    function connectSSE(jobId) {
+      if (eventSource) {
+        eventSource.close();
+      }
+
+      eventSource = new EventSource(`/crawl/${jobId}/events`);
+      statusText.textContent = 'Cloning website...';
+
+      eventSource.addEventListener('progress', (e) => {
+        const data = JSON.parse(e.data);
+        statPages.textContent = data.pagesVisited || '0';
+        statSize.textContent = formatBytes(data.bytesDownloaded || 0);
+        
+        if (data.currentUrl) {
+          // Truncate domain to display neat active segments
+          try {
+            const u = new URL(data.currentUrl);
+            statSpeed.textContent = u.pathname + u.search;
+          } catch {
+            statSpeed.textContent = data.currentUrl;
+          }
+          addLog(`Crawled page: ${data.currentUrl}`);
+        }
+      });
+
+      eventSource.addEventListener('page', (e) => {
+        const data = JSON.parse(e.data);
+        addLog(`Assets captured on page: ${data.url}`);
+      });
+
+      eventSource.addEventListener('done', (e) => {
+        const data = JSON.parse(e.data);
+        addLog(`Completed! Saved pages: ${data.stats.pages}, size: ${formatBytes(data.stats.bytes)}`, 'success');
+        
+        statusText.textContent = 'Mirror successfully completed';
+        statusIndicator.className = 'status-indicator success';
+        
+        downloadLink.href = data.downloadUrl;
+        downloadPanel.style.display = 'block';
+
+        cleanupJob();
+      });
+
+      eventSource.addEventListener('error', (e) => {
+        let msg = 'An unexpected crawl error occurred';
+        try {
+          if (e.data) {
+            const data = JSON.parse(e.data);
+            msg = data.message || msg;
+          }
+        } catch {
+          // ignore
+        }
+        addLog(msg, 'error');
+        statusText.textContent = 'Execution Error';
+        statusIndicator.className = 'status-indicator error';
+        cleanupJob();
+      });
+
+      eventSource.addEventListener('aborted', (e) => {
+        addLog('Crawl aborted by user', 'error');
+        statusText.textContent = 'Aborted';
+        statusIndicator.className = 'status-indicator error';
+        cleanupJob();
+      });
+    }
+
+    function cleanupJob() {
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
+      currentJobId = null;
+      submitBtn.disabled = false;
+    }
+  </script>
+</body>
+</html>
