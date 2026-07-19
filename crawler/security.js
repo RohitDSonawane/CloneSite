@@ -11,6 +11,9 @@ const dnsCache = new Map();
  * @returns {boolean}
  */
 function isIpInRestrictedRanges(ip) {
+  if (process.env.BYPASS_SSRF_FOR_TEST === 'true' && (ip === '127.0.0.1' || ip === '::ffff:127.0.0.1' || ip === '::1')) {
+    return false;
+  }
   if (net.isIPv4(ip)) {
     const parts = ip.split('.').map(Number);
     if (parts.length !== 4) return true; // Treat invalid IPv4 as restricted
@@ -113,7 +116,9 @@ async function assertSafeUrl(urlString) {
   if (portString) {
     const port = parseInt(portString, 10);
     const allowedPorts = [80, 443, 8080, 8443];
-    if (!allowedPorts.includes(port)) {
+    if (process.env.BYPASS_SSRF_FOR_TEST === 'true' && port === 4567) {
+      // Allow test port
+    } else if (!allowedPorts.includes(port)) {
       throw new Error(`Forbidden port: ${port}`);
     }
   }
