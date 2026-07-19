@@ -1,0 +1,82 @@
+# .agentignore
+# These patterns tell the agent what files/directories to ignore during code searches, indexing, or editing.
+
+# Version Control
+.git/
+.svn/
+.hg/
+
+# Dependency Directories
+node_modules/
+bower_components/
+jspm_packages/
+venv/
+.venv/
+env/
+.env/
+bin/
+obj/
+
+# Package Manager Lock Files (usually huge and not useful for logic context)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+poetry.lock
+Pipfile.lock
+Cargo.lock
+Gemfile.lock
+
+# Build and Compilation Outputs
+dist/
+build/
+out/
+target/
+.next/
+.nuxt/
+.docusaurus/
+.cache/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.o
+*.obj
+*.dll
+*.dylib
+*.so
+*.exe
+*.class
+
+# IDE and System Files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+.DS_Store
+Thumbs.db
+
+# Agent Run Logs and Scratchpads
+.agents/scratch/
+.agents/task.md
+.agents/implementation_plan.md
+.agents/walkthrough.md
+
+# Large Media, Documents and Assets
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.ico
+*.mp4
+*.webm
+*.pdf
+*.zip
+*.tar
+*.gz
+*.rar
+*.7z
